@@ -67,7 +67,7 @@ func Deploy(store *db.DB, broadcaster *LogBroadcaster, cfg *config.Config, deplo
 	store.AppendLog(deployment.ID, "system", "Starting container...")
 	broadcaster.Publish(deployment.ID, "Starting container...")
 
-	containerID, hostPort, err := StartContainer(imageTag, cfg.ContainerPort)
+	containerID, containerIP, hostPort, err := StartContainer(imageTag, cfg.ContainerPort, cfg.DockerNetwork)
 	if err != nil {
 		fail(fmt.Errorf("start container: %w", err))
 		return
@@ -79,7 +79,7 @@ func Deploy(store *db.DB, broadcaster *LogBroadcaster, cfg *config.Config, deplo
 	store.AppendLog(deployment.ID, "system", "Configuring routing...")
 	broadcaster.Publish(deployment.ID, "Configuring routing...")
 
-	if err := AddRoute(cfg.CaddyAdminURL, deployment.ID, hostPort); err != nil {
+	if err := AddRoute(cfg.CaddyAdminURL, deployment.ID, containerIP, cfg.ContainerPort); err != nil {
 		fail(fmt.Errorf("add route: %w", err))
 		return
 	}

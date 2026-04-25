@@ -3,6 +3,8 @@ services:
     image: moby/buildkit
     privileged: true
     restart: unless-stopped
+    networks:
+      - brimble
 
   backend:
     build: ./backend
@@ -15,18 +17,23 @@ services:
       - PUBLIC_URL=http://localhost
       - CONTAINER_PORT=3000
       - BUILDKIT_HOST=docker-container://buildkit
+      - DOCKER_NETWORK=mini-brimble_brimble
     volumes:
       - ./data:/data
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - caddy
       - buildkit
+    networks:
+      - brimble
 
   frontend:
     build:
       context: ./frontend
     depends_on:
       - backend
+    networks:
+      - brimble
 
   caddy:
     image: caddy:latest
@@ -35,3 +42,9 @@ services:
       - "2019:2019"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
+    networks:
+      - brimble
+
+networks:
+  brimble:
+    driver: bridge

@@ -7,19 +7,29 @@ import (
 	"net/http"
 )
 
-func AddRoute(caddyAdminURL, deploymentID string, hostPort int) error {
+func AddRoute(caddyAdminURL, deploymentID, containerIP, containerPort string) error {
 	route := map[string]any{
 		"match": []map[string]any{
 			{"path": []string{fmt.Sprintf("/deploys/%s/*", deploymentID)}},
 		},
 		"handle": []map[string]any{
 			{
-				"handler": "reverse_proxy",
-				"upstreams": []map[string]any{
-					{"dial": fmt.Sprintf("host.docker.internal:%d", hostPort)},
-				},
-				"rewrite": map[string]any{
-					"strip_path_prefix": fmt.Sprintf("/deploys/%s", deploymentID),
+				"handler": "subroute",
+				"routes": []map[string]any{
+					{
+						"handle": []map[string]any{
+							{
+								"handler":           "rewrite",
+								"strip_path_prefix": fmt.Sprintf("/deploys/%s", deploymentID),
+							},
+							{
+								"handler": "reverse_proxy",
+								"upstreams": []map[string]any{
+									{"dial": fmt.Sprintf("%s:%s", containerIP, containerPort)},
+								},
+							},
+						},
+					},
 				},
 			},
 		},
@@ -30,10 +40,17 @@ func AddRoute(caddyAdminURL, deploymentID string, hostPort int) error {
 		return fmt.Errorf("marshal route: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/config/apps/http/servers/srv0/routes", caddyAdminURL)
-	resp, err := http.Post(url, "application/json", bytes.NewReader(body))
+	url := fmt.Sprintf("%s/config/apps/http/servers/srv0/routes/0", caddyAdminURL)
+
+	req, err := http.NewRequest(http.MethodPut, url, bytes.NewReader(body))
 	if err != nil {
-		return fmt.Errorf("caddy post: %w", err)
+		return fmt.Errorf("build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("caddy put: %w", err)
 	}
 	defer resp.Body.Close()
 

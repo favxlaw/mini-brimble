@@ -6,33 +6,44 @@ import (
 	"strings"
 )
 
-func StartContainer(imageTag, containerPort string) (containerID string, hostPort int, err error) {
+func StartContainer(imageTag, containerPort, dockerNetwork string) (containerID string, containerIP string, hostPort int, err error) {
 	out, err := exec.Command("docker", "run",
 		"-d",
-		"-p", fmt.Sprintf("0::%s", containerPort),
+		"--network", dockerNetwork,
+		"-p", fmt.Sprintf("::%s", containerPort),
 		"--env", fmt.Sprintf("PORT=%s", containerPort),
 		imageTag,
 	).Output()
 	if err != nil {
-		return "", 0, fmt.Errorf("docker run: %w", err)
+		return "", "", 0, fmt.Errorf("docker run: %w", err)
 	}
 
 	containerID = strings.TrimSpace(string(out))
 
+	// Use json format and parse it to avoid template issues with hyphenated network names
+	ipOut, err := exec.Command("docker", "inspect",
+		"--format", "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+		containerID,
+	).Output()
+	if err != nil {
+		return "", "", 0, fmt.Errorf("docker inspect ip: %w", err)
+	}
+	containerIP = strings.TrimSpace(string(ipOut))
+
 	portOut, err := exec.Command("docker", "port", containerID, containerPort).Output()
 	if err != nil {
-		return "", 0, fmt.Errorf("docker port: %w", err)
+		return "", "", 0, fmt.Errorf("docker port: %w", err)
 	}
 
 	portStr := strings.TrimSpace(string(portOut))
-	parts := strings.Split(portStr, ":")
-	if len(parts) != 2 {
-		return "", 0, fmt.Errorf("unexpected port output: %s", portStr)
+	lastColon := strings.LastIndex(portStr, ":")
+	if lastColon == -1 {
+		return "", "", 0, fmt.Errorf("unexpected port output: %s", portStr)
 	}
 
-	fmt.Sscanf(parts[1], "%d", &hostPort)
+	fmt.Sscanf(portStr[lastColon+1:], "%d", &hostPort)
 
-	return containerID, hostPort, nil
+	return containerID, containerIP, hostPort, nil
 }
 
 func StopContainer(containerID string) error {
