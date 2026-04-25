@@ -1,0 +1,37 @@
+services:
+  buildkit:
+    image: moby/buildkit
+    privileged: true
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - DB_PATH=/data/brimble.db
+      - CADDY_ADMIN_URL=http://caddy:2019
+      - PUBLIC_URL=http://localhost
+      - CONTAINER_PORT=3000
+      - BUILDKIT_HOST=docker-container://buildkit
+    volumes:
+      - ./data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - caddy
+      - buildkit
+
+  frontend:
+    build:
+      context: ./frontend
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:latest
+    ports:
+      - "80:80"
+      - "2019:2019"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
