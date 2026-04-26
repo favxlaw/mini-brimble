@@ -178,6 +178,23 @@ Approximately 2 days. First day on backend architecture, pipeline, and Docker/Ca
 
 ---
 
-## Brimble deploy + feedback
+## Brimble Deploy + Feedback
 
-*[to be added after deploying on Brimble]*
+Deployed: https://test-static-deploy.brimble.app
+
+I initially tried deploying the sample Node.js app from this project. 
+Brimble auto-detected Node.js correctly, I configured build settings and 
+secrets, then hit a wall at the final step — a warning that Node.js requires 
+a paid plan and free accounts only support static sites. That constraint 
+should surface at framework detection, not after the user has completed 
+configuration. It's a small UX fix with a significant impact on developer 
+trust.
+
+I switched to a static HTML file which deployed in 4 seconds — genuinely 
+fast. The deployment history UI is clean and the live URL was immediate. 
+That said, the build log is sparse — "queued, started, cloning, running" 
+with nothing in between. For a failed deployment there's no signal about 
+where it broke or why. Given Brimble uses Railpack internally, surfacing 
+the Railpack build steps (runtime detection, dependency install, image 
+build) in the log output would make debugging significantly easier. The 
+fast path works well. The debugging path needs work I think.
