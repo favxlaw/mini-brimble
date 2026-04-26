@@ -161,6 +161,16 @@ Railpack supports BuildKit cache mounts. Right now each build starts cold. Persi
 **Graceful zero-downtime redeploys**
 Current flow: stop old container, start new one — there's a gap. The fix is blue/green: start the new container, wait for it to pass a health check, update the Caddy route, then stop the old container.
 
+**Deployment lifecycle management**
+There is currently no way to stop or delete a deployment from the UI. 
+A running container continues until manually stopped via the Docker CLI. 
+With more time I'd add a stop endpoint that sends SIGTERM to the container, 
+waits for graceful shutdown, removes the Caddy route, and updates status 
+to stopped. A delete endpoint would clean up the DB record, logs, and the 
+Docker image. A dedicated stopped status would also need adding to the 
+state machine alongside the current pending → building → deploying → 
+running → failed lifecycle.
+
 **Upload support**
 The UI had a zip upload option that we removed to keep scope tight. The backend pipeline already handles `SourceTypeUpload` — it just needs a multipart handler to receive the file and extract it to the temp directory.
 
